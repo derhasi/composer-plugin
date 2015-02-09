@@ -8,15 +8,10 @@
 namespace derhasi\Composer;
 
 use Composer\Composer;
-use Composer\DependencyResolver\Operation\InstallOperation;
-use Composer\DependencyResolver\Operation\UninstallOperation;
-use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\IO\IOInterface;
-use Composer\Package\PackageInterface;
 use Composer\Plugin\PluginEvents;
 use Composer\Plugin\PluginInterface;
-use Composer\Script\PackageEvent;
 use Composer\Script\ScriptEvents;
 
 /**
@@ -25,21 +20,19 @@ use Composer\Script\ScriptEvents;
 class Plugin implements PluginInterface, EventSubscriberInterface {
 
   /**
-   * @var \Composer\IO\IOInterface
+   * @var \derhasi\Composer\PluginEventLogger
    */
-  protected $io;
-
-  /**
-   * @var \Composer\Composer
-   */
-  protected $composer;
+  protected $logger;
 
   /**
    * {@inheritdoc}
    */
   public function activate(Composer $composer, IOInterface $io) {
-    $this->io = $io;
-    $this->composer = $composer;
+    // The events are called by our separate logger class. This way we separate
+    // functionality and also avoid some debug issues with the plugin being
+    // copied on initialisation.
+    // @see \Composer\Plugin\PluginManager::registerPackage()
+    $this->logger = new PluginEventLogger($composer, $io);
   }
 
   /**
@@ -64,36 +57,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface {
    * @param \Composer\EventDispatcher\Event $event
    */
   public function logEvent($event) {
-    $this->io->write(sprintf('Event called: %s', $event->getName()), TRUE);
+    $this->logger->logEvent($event);
   }
 
   public function logPackageEvent($event) {
-    if ($event instanceof PackageEvent) {
-
-      $operation = $event->getOperation();
-      if ($operation instanceof InstallOperation) {
-        $package = $operation->getPackage();
-      }
-      elseif ($operation instanceof UpdateOperation) {
-        $package = $operation->getTargetPackage();
-      }
-      elseif ($operation instanceof UninstallOperation) {
-        $package = $operation->getPackage();
-      }
-
-      if ($package && $package instanceof PackageInterface) {
-        /** @var \Composer\Installer\InstallationManager $installationManager */
-        $installationManager = $this->composer->getInstallationManager();
-
-        $path = $installationManager->getInstallPath($package);
-        $this->io->write(sprintf('Event called: %s, Package: %s, Path: %s', $event->getName(), $package->getName(), $path), TRUE);
-      }
-
-    }
-    else {
-      $this->io->write(sprintf('Event called: %s, <error>no package event</error>', $event->getName()), TRUE);
-    }
-
+    $this->logPackageEvent($event);
   }
 
 }
