@@ -61,7 +61,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface {
   }
 
   public function logPackageEvent($event) {
-    $this->logPackageEvent($event);
+    $this->logger->logPackageEvent($event);
   }
 
 }
